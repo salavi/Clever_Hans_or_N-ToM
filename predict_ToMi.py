@@ -71,7 +71,7 @@ def predict(continue_index, opt):
 
 def get_preprompt():
     prompt = ""
-    with open("prompt.txt") as f_in:
+    with open("processed_data/prompt.txt") as f_in:
         for line in f_in:
             data = json.loads(line)
             prompt += data['context'] + '\n' + data['question'] + data['label'] + "\n\n"

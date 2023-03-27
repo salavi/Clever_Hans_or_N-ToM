@@ -1,0 +1,1 @@
+{"context": "Abigail entered the bedroom. James entered the bedroom.The tie is in the treasure_chest.Abigail exited the bedroom. James moved the tie to the container. James exited the bedroom. Abigail entered the back_yard.", "question": "James will look for the tie in _", "o1": "container", "o2": "treasure_chest", "label": "container"}
