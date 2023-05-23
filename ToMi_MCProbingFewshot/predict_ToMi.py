@@ -58,7 +58,7 @@ def average_accuracy(opt):
 def predict(continue_index, opt):
     preprompt = get_preprompt()
     with open(f"output/{opt['dataset_set']}.txt", "a") as f_out:
-        with open(f"processed_data/{opt['dataset_set']}.txt") as f_in:
+        with open(f"ToMi_processed_data/{opt['dataset_set']}.txt") as f_in:
             for i, line in enumerate(tqdm.tqdm(f_in)):
                 if i < continue_index:
                     continue
@@ -71,14 +71,14 @@ def predict(continue_index, opt):
 
 def get_preprompt():
     prompt = ""
-    with open("processed_data/prompt.txt") as f_in:
+    with open("ToMi_processed_data/prompt.txt") as f_in:
         for line in f_in:
             data = json.loads(line)
             prompt += data['context'] + '\n' + data['question'] + data['label'] + "\n\n"
     return prompt
 
 def preprocess_tomi(input_path, opt):
-    with open(f"processed_data/{opt['dataset_set']}.txt", "a") as f_out:
+    with open(f"ToMi_processed_data/{opt['dataset_set']}.txt", "a") as f_out:
         with open(input_path) as input_file:
             sample = dict()
             sample["context"] = ""
