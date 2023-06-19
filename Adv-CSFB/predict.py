@@ -20,7 +20,7 @@ def main():
     args = parser.parse_args()
     opt = vars(args)
     openai.api_key = args.openai_api_key
-    input_path = f"Adv-CSFB/{opt['dataset']}.jsonl"
+    input_path = f"data/{opt['dataset']}.jsonl"
     continue_index = 0
     if opt['predict']:
         predict(input_path, continue_index, opt)
@@ -32,7 +32,7 @@ def main():
 def type_accuracy(opt):
     if opt['dataset'] == 'unexpected_transfer' or opt['dataset'] == 'unexpected_contents':
         types_results = {}
-        with open(f'output/{opt["dataset"]}_{opt["model"]}_kosinski-test.txt') as f_in:
+        with open(f'results_log/{opt["dataset"]}_{opt["model"]}_kosinski-test.txt') as f_in:
             for i, line in enumerate(tqdm.tqdm(f_in)):
                 fields = json.loads(line)
                 temp = types_results.setdefault(fields['type'], ([], []))
@@ -85,7 +85,7 @@ def accuracy(opt):
     gold = []
     predictions = []
     if opt['dataset'] == 'unexpected_transfer' or opt['dataset'] == 'unexpected_contents':
-        with open(f'output/{opt["dataset"]}_{opt["model"]}_kosinski-test.txt') as f_in:
+        with open(f'results_log/{opt["dataset"]}_{opt["model"]}_kosinski-test.txt') as f_in:
             for i, line in enumerate(tqdm.tqdm(f_in)):
                 fields = json.loads(line)
                 gold.append([fields[fields['truth']], fields[fields['belief']], fields[fields['belief']]])
@@ -124,7 +124,7 @@ def accuracy(opt):
 def predict(input_path, continue_index, opt):
     preprompt = get_preprompt(opt)
     unexpected_content_source = load_data('data/unexpected_contents_source.json')[0]['data']
-    with open(f"output/{opt['dataset']}_{opt['model']}_kosinski-test.txt", "a") as f_out:
+    with open(f"results_log/{opt['dataset']}_{opt['model']}_kosinski-test_reordered_choices.txt", "a") as f_out:
         with open(input_path) as f_in:
             for i, line in enumerate(tqdm.tqdm(f_in)):
                 if i < continue_index:
@@ -133,7 +133,7 @@ def predict(input_path, continue_index, opt):
                 fields = json.loads(line)
                 if opt['dataset'] == 'unexpected_contents':
                     fields.update(unexpected_content_source[fields['idx']-1])
-                prompts = get_prompt(preprompt, opt, fields, method1=True)
+                prompts = get_prompt(preprompt, opt, fields, i, method1=True)
                 for i, prompt in enumerate(prompts):
                     if opt['model'] == 'gpt-3.5-turbo-0301' or opt['model'] == 'gpt-4':
                         fields['prediction' + str(i+1)] = open_ai_chatgpt_request(opt['model'], prompt, i, 0).strip()
@@ -155,7 +155,7 @@ def load_data(path):
 def get_preprompt(opt):
     prompt = ""
     if opt['dataset'] == 'unexpected_contents' or opt['dataset'] == 'unexpected_transfer':
-        with open(f"Adv-CSFB/{opt['dataset']}_preprompt.txt") as f_in:
+        with open(f"data/{opt['dataset']}_preprompt.txt") as f_in:
             for line in f_in:
                 data = json.loads(line)
                 prompt += 'Context: ' + data['context'] + ' ' + data['question'] + '\nQuestion: Fill in the blank with the best option.' \
@@ -164,11 +164,15 @@ def get_preprompt(opt):
     return prompt
 
 
-def get_prompt(preprompt, opt, fields, method1=False):
+def get_prompt(preprompt, opt, fields, sample_count ,method1=False):
     prompts = []
+    if sample_count % 2 == 0:
+        choices = '- ' + fields['o1'].strip() + '\n' + '- ' + fields['o2'].strip()
+    else:
+        choices = '- ' + fields['o2'].strip() + '\n' + '- ' + fields['o1'].strip()
+
     if opt['dataset'] == 'unexpected_transfer':
         context = fields['txt'].strip()
-        choices = '- ' + fields['o1'].strip() + '\n' + '- ' + fields['o2'].strip()
         for i in range(1, 4):
             question =  fields['q' + str(i)].strip() + " _\n" + 'Question: Fill in the blank with the best option.'
             prompt = preprompt + "Context: " + context + '\n' + question + '\n' + choices + '\n' + "Answer:"
@@ -179,7 +183,6 @@ def get_prompt(preprompt, opt, fields, method1=False):
             context = context.replace("[o2]", fields['o2'])
             context = context.replace("[ctr]", fields['ctr'])
             context += fields['xpro'].capitalize() + ' is delighted to have found this ' + fields['ctr'] + '.'
-            choices = '- ' + fields['o1'].strip() + '\n' + '- ' + fields['o2'].strip()
             question = 'Question: Fill in the blank with the best option. ' + fields['xpro'].capitalize() + ' ' + fields['q3'].strip() + " _"
             prompt = preprompt + "Context: " + context + '\n' + question + '\n' + choices + '\n' + "Answer:"
             prompts.append(prompt)
@@ -195,7 +198,6 @@ def get_prompt(preprompt, opt, fields, method1=False):
                         ' believes that it is full of _\n' + 'Question: Fill in the blank with the best option.'
             question3 =  fields['xpro'].capitalize() + \
                         f' calls {fields["pos_pro"]} friend to tell them that he has just found a {fields["ctr"]} full of _\n' + 'Question: Fill in the blank with the best option.'
-            choices = '- ' + fields['o1'].strip() + '\n' + '- ' + fields['o2'].strip()
             prompts = [preprompt + "Context: " + context + '\n' + question1 + '\n' + choices + '\n' + "Answer:",
                        preprompt + "Context: " + context + '\n' + question2 + '\n' + choices + '\n' + "Answer:",
                        preprompt + "Context: " + context + '\n' + question3 + '\n' + choices + '\n' + "Answer:"]
